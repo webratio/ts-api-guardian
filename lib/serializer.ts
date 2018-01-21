@@ -97,10 +97,10 @@ class ResolvedDeclarationEmitter {
       // The declaration node may not be a complete statement, e.g. for var/const
       // symbols. We need to find the complete export statement by traversing
       // upwards.
-      while (!(decl.flags & ts.NodeFlags.Export) && decl.parent) {
+      while (!hasModifier(decl, ts.SyntaxKind.ExportKeyword) && decl.parent) {
         decl = decl.parent;
       }
-      if (decl.flags & ts.NodeFlags.Export) {
+      if (hasModifier(decl, ts.SyntaxKind.ExportKeyword)) {
         // Make an empty line between two exports
         if (output) {
           output += '\n';
@@ -170,7 +170,7 @@ class ResolvedDeclarationEmitter {
   }
 
   emitNode(node: ts.Node) {
-    if (node.flags & ts.NodeFlags.Private) {
+    if (ts.getCombinedModifierFlags(node) & ts.ModifierFlags.Private) {
       return '';
     }
 
@@ -200,7 +200,7 @@ class ResolvedDeclarationEmitter {
       }
     }
 
-    let children = node.getChildren();
+    let children = node.getChildren().filter(child => !ts.isJSDocCommentContainingNode(child));
     const sourceText = node.getSourceFile().text;
     if (children.length) {
       // Sort declarations under a class or an interface
@@ -217,13 +217,16 @@ class ResolvedDeclarationEmitter {
               children.sort((a: ts.Declaration, b: ts.Declaration) => {
                 // Static after normal
                 return compareFunction(
-                           a.flags & ts.NodeFlags.Static, b.flags & ts.NodeFlags.Static) ||
+                           ts.getCombinedModifierFlags(a) & ts.ModifierFlags.Static,
+                           ts.getCombinedModifierFlags(b) & ts.ModifierFlags.Static) ||
                     // Our predefined order
                     compareFunction(
                            memberDeclarationOrder[a.kind], memberDeclarationOrder[b.kind]) ||
                     // Alphebetical order
                     // We need safe dereferencing due to edge cases, e.g. having two call signatures
-                    compareFunction((a.name || a).getText(), (b.name || b).getText());
+                    compareFunction(
+                            ((<ts.NamedDeclaration>a).name || a).getText(),
+                            ((<ts.NamedDeclaration>b).name || b).getText());
               });
             }
             break;
@@ -309,6 +312,17 @@ function getFirstQualifier(node: ts.Node): ts.Identifier {
   } else {
     return null;
   }
+}
+
+function hasModifier(node: ts.Node, modifierKind: ts.SyntaxKind) : boolean {
+  if (node.modifiers) {
+    for (const modifier of node.modifiers) {
+      if (modifier.kind === modifierKind) {
+        return true;
+      }
+    }
+  }
+  return false;
 }
 
 function createErrorMessage(node: ts.Node, message: string): string {

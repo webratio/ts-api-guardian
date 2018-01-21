@@ -1,4 +1,4 @@
-/// <reference path="../typings/chai/chai.d.ts"/>
+/// <reference types="chai"/>
 import chai = require('chai');
 import * as ts from 'typescript';
 import {parseArguments, generateFileNamePairs} from '../lib/cli';
