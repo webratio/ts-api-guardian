@@ -1,4 +1,4 @@
-/// <reference path="../typings/chai/chai.d.ts"/>
+/// <reference types="chai"/>
 import chai = require('chai');
 import * as fs from 'fs';
 import * as path from 'path';
