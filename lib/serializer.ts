@@ -85,8 +85,7 @@ class ResolvedDeclarationEmitter {
         continue;
       }
 
-      let decl: ts.Node = symbol.valueDeclaration || symbol.declarations && symbol.declarations[0];
-      if (!decl) {
+      if (!symbol.declarations || symbol.declarations.length <= 0) {
         this.diagnostics.push({
           type: 'warning',
           message: `${sourceFile.fileName}: error: No declaration found for symbol "${symbol.name}"`
@@ -94,40 +93,43 @@ class ResolvedDeclarationEmitter {
         continue;
       }
 
-      // The declaration node may not be a complete statement, e.g. for var/const
-      // symbols. We need to find the complete export statement by traversing
-      // upwards.
-      while (!(decl.flags & ts.NodeFlags.Export) && decl.parent) {
-        decl = decl.parent;
-      }
-      if (decl.flags & ts.NodeFlags.Export) {
-        // Make an empty line between two exports
-        if (output) {
-          output += '\n';
-        }
+      for (let decl of symbol.declarations as ts.Node[]) {
 
-        // Print stability annotation
-        const sourceText = decl.getSourceFile().text;
-        const trivia = sourceText.substr(decl.pos, decl.getLeadingTriviaWidth());
-        const match = stabilityAnnotationPattern.exec(trivia);
-        if (match) {
-          output += `/** @${match[1]} */\n`;
-        } else if (['warn', 'error'].indexOf(this.options.onStabilityMissing) >= 0) {
+        // The declaration node may not be a complete statement, e.g. for var/const
+        // symbols. We need to find the complete export statement by traversing
+        // upwards.
+        while (!(decl.flags & ts.NodeFlags.Export) && decl.parent) {
+          decl = decl.parent;
+        }
+        if (decl.flags & ts.NodeFlags.Export) {
+          // Make an empty line between two exports
+          if (output) {
+            output += '\n';
+          }
+
+          // Print stability annotation
+          const sourceText = decl.getSourceFile().text;
+          const trivia = sourceText.substr(decl.pos, decl.getLeadingTriviaWidth());
+          const match = stabilityAnnotationPattern.exec(trivia);
+          if (match) {
+            output += `/** @${match[1]} */\n`;
+          } else if (['warn', 'error'].indexOf(this.options.onStabilityMissing) >= 0) {
+            this.diagnostics.push({
+              type: this.options.onStabilityMissing,
+              message: createErrorMessage(
+                  decl, `No stability annotation found for symbol "${symbol.name}"`)
+            });
+          }
+
+          output += stripEmptyLines(this.emitNode(decl)) + '\n';
+        } else {
+          // This may happen for symbols re-exported from external modules.
           this.diagnostics.push({
-            type: this.options.onStabilityMissing,
-            message: createErrorMessage(
-                decl, `No stability annotation found for symbol "${symbol.name}"`)
+            type: 'warning',
+            message:
+                createErrorMessage(decl, `No export declaration found for symbol "${symbol.name}"`)
           });
         }
-
-        output += stripEmptyLines(this.emitNode(decl)) + '\n';
-      } else {
-        // This may happen for symbols re-exported from external modules.
-        this.diagnostics.push({
-          type: 'warning',
-          message:
-              createErrorMessage(decl, `No export declaration found for symbol "${symbol.name}"`)
-        });
       }
     }
 
@@ -150,7 +152,7 @@ class ResolvedDeclarationEmitter {
         const resolvedSymbol = this.typeChecker.getAliasedSymbol(s);
 
         // This will happen, e.g. for symbols re-exported from external modules.
-        if (!resolvedSymbol.valueDeclaration && !resolvedSymbol.declarations) {
+        if (!resolvedSymbol.declarations || resolvedSymbol.declarations.length <= 0) {
           return s;
         }
         if (resolvedSymbol.name !== s.name) {

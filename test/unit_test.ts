@@ -83,6 +83,27 @@ describe('unit test', () => {
     check({'classes_and_interfaces.d.ts': classesAndInterfaces, 'file.d.ts': input}, expected);
   });
 
+  it('should support multiple declarations of the same symbol', () => {
+    const input = `
+      export declare class C {
+          field: A;
+      }
+      export declare namespace C {
+          export const K;
+      
+    `;
+    const expected = `
+      export declare class C {
+          field: A;
+      }
+
+      export declare namespace C {
+          export const K;
+      
+    `;
+    check({'classes_and_interfaces.d.ts': classesAndInterfaces, 'file.d.ts': input}, expected);
+  });
+
   it('should throw on aliased reexports', () => {
     const input = `
       export { A as Apple } from './classes_and_interfaces';
