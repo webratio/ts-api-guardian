@@ -1,5 +1,5 @@
 eclipse.preferences.version=1
-embeddedTypeScriptId=TypeScript (2.2.2)
+embeddedTypeScriptId=TypeScript (3.8.3)
 installedTypeScriptPath=${project_loc\:node_modules/typescript}
 tsserverTraceOnConsole=false
 typeScriptBuildPath={"tsconfig.json"\:{}}
